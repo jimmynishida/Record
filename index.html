@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
+    <title>時光唱盤 - H5原型</title>
+
+    <style>
+
+        :root {
+
+            --record-size: 300px;
+
+            --tonearm-width: 150px;
+
+            --tonearm-height: 8px;
+
+        }
+
+
+
+        body {
+
+            margin: 0;
+
+            padding: 0;
+
+            display: flex;
+
+            justify-content: center;
+
+            align-items: center;
+
+            height: 100vh;
+
+            background-color: #2c2c2c;
+
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+            overflow: hidden;
+
+            touch-action: none; /* 防止觸控時頁面滾動 */
+
+        }
+
+
+
+        #game-container {
+
+            position: relative;
+
+            width: var(--record-size);
+
+            height: var(--record-size);
+
+            display: flex;
+
+            justify-content: center;
+
+            align-items: center;
+
+        }
+
+
+
+        #record {
+
+            width: var(--record-size);
+
+            height: var(--record-size);
+
+            background: radial-gradient(circle, #555 10%, #444 11%, #333 12%, #333 100%);
+
+            border-radius: 50%;
+
+            position: relative;
+
+            display: flex;
+
+            justify-content: center;
+
+            align-items: center;
+
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+
+            animation: spin 10s linear infinite;
+
+            animation-play-state: paused;
+
+        }
+
+
+
+        #record::before { /* 唱片紋路 */
+
+            content: '';
+
+            position: absolute;
+
+            width: 90%;
+
+            height: 90%;
+
+            border-radius: 50%;
+
+            background-image: repeating-radial-gradient(circle, rgba(0,0,0,0.2) 0px, rgba(0,0,0,0.2) 1px, transparent 1px, transparent 4px);
+
+        }
+
+
+
+        #record-label {
+
+            width: 35%;
+
+            height: 35%;
+
+            background-color: #d2b48c;
+
+            border-radius: 50%;
+
+            display: flex;
+
+            justify-content: center;
+
+            align-items: center;
+
+            text-align: center;
+
+            font-size: 12px;
+
+            color: #5d4037;
+
+            font-weight: bold;
+
+            z-index: 1;
+
+            border: 2px solid #a1887f;
+
+        }
+
+
+
+        #judgment-zone { /* 最佳調頻圈 */
+
+            position: absolute;
+
+            top: -20px;
+
+            left: 50%;
+
+            transform: translateX(-50%);
+
+            width: 40px;
+
+            height: 40px;
+
+            border: 2px solid rgba(255, 223, 186, 0.7);
+
+            border-radius: 50%;
+
+            z-index: 10;
+
+        }
+
+        #judgment-zone::before { /* 圈內指示 */
+
+             content: '';
+
+             position: absolute;
+
+             top: 50%;
+
+             left: 50%;
+
+             transform: translate(-50%, -50%);
+
+             width: 10px;
+
+             height: 10px;
+
+             background-color: rgba(255, 223, 186, 0.9);
+
+             border-radius: 50%;
+
+        }
+
+
+
+        #tonearm {
+
+            position: absolute;
+
+            width: var(--tonearm-width);
+
+            height: var(--tonearm-height);
+
+            background: linear-gradient(to right, #ccc, #eee);
+
+            border-radius: 4px;
+
+            top: calc(50% - var(--tonearm-height) / 2);
+
+            left: 50%;
+
+            transform-origin: calc(var(--tonearm-width) - 20px) 50%;
+
+            z-index: 20;
+
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+
+            cursor: grab;
+
+        }
+
+        #tonearm:active {
+
+            cursor: grabbing;
+
+        }
+
+
+
+        #stylus { /* 唱針 */
+
+            position: absolute;
+
+            width: 12px;
+
+            height: 12px;
+
+            background-color: #333;
+
+            border: 2px solid #fff;
+
+            border-radius: 50%;
+
+            top: -4px;
+
+            left: -4px;
+
+        }
+
+
+
+        .note { /* 發光軌道（音符） */
+
+            position: absolute;
+
+            width: 40px;
+
+            height: 10px;
+
+            background: linear-gradient(90deg, transparent, rgba(255, 215, 0, 0.8), transparent);
+
+            border-radius: 5px;
+
+            transform-origin: calc(var(--record-size) / 2 - 25px) center; /* 讓音符繞著中心旋轉 */
+
+            top: 25px; /* 定位在唱片外圈 */
+
+            left: calc(50% - 20px);
+
+            z-index: 5;
+
+        }
+
+
+
+        .feedback { /* 判定反饋文字 */
+
+            position: absolute;
+
+            top: 20%;
+
+            left: 50%;
+
+            transform: translateX(-50%);
+
+            font-size: 32px;
+
+            font-weight: bold;
+
+            color: white;
+
+            z-index: 100;
+
+            opacity: 0;
+
+            animation: fade-out 1s forwards;
+
+        }
+
+        #perfect { color: #ffd700; }
+
+        #good { color: #90ee90; }
+
+        #miss { color: #ff6347; }
+
+
+
+        #ui-container {
+
+            position: absolute;
+
+            top: 20px;
+
+            width: 100%;
+
+            text-align: center;
+
+            z-index: 100;
+
+            color: white;
+
+            font-size: 24px;
+
+        }
+
+        
+
+        #start-screen, #end-screen {
+
+            position: absolute;
+
+            top: 0; left: 0;
+
+            width: 100%; height: 100%;
+
+            background-color: rgba(0,0,0,0.7);
+
+            display: flex;
+
+            flex-direction: column;
+
+            justify-content: center;
+
+            align-items: center;
+
+            z-index: 200;
+
+            color: white;
+
+        }
+
+
+
+        #start-button, #restart-button {
+
+            padding: 15px 30px;
+
+            font-size: 20px;
+
+            color: #333;
+
+            background-color: #d2b48c;
+
+            border: none;
+
+            border-radius: 10px;
+
+            cursor: pointer;
+
+            margin-top: 20px;
+
+        }
+
+
+
+        @keyframes spin {
+
+            from { transform: rotate(0deg); }
+
+            to { transform: rotate(360deg); }
+
+        }
+
+
+
+        @keyframes fade-out {
+
+            0% { opacity: 1; transform: translate(-50%, -10px); }
+
+            100% { opacity: 0; transform: translate(-50%, -50px); }
+
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+
+
+    <div id="ui-container">
+
+        <div>得分: <span id="score">0</span></div>
+
+        <div>連擊: <span id="combo">0</span></div>
+
+    </div>
+
+    
+
+    <div id="game-container">
+
+        <div id="judgment-zone"></div>
+
+        <div id="record">
+
+            <div id="record-label">時光唱盤<br>70's Gold</div>
+
+        </div>
+
+        <div id="tonearm">
+
+            <div id="stylus"></div>
+
+        </div>
+
+    </div>
+
+
+
+    <div id="start-screen">
+
+        <h1>時光唱盤</h1>
+
+        <p>拖動唱臂，在音符到達頂端時對準它</p>
+
+        <button id="start-button">開始播放</button>
+
+    </div>
+
+
+
+    <div id="end-screen" style="display: none;">
+
+        <h1>播放結束</h1>
+
+        <p>最終得分: <span id="final-score">0</span></p>
+
+        <p>最高連擊: <span id="max-combo">0</span></p>
+
+        <button id="restart-button">再試一次</button>
+
+    </div>
+
+
+
+    <script>
+
+        const gameContainer = document.getElementById('game-container');
+
+        const record = document.getElementById('record');
+
+        const tonearm = document.getElementById('tonearm');
+
+        const judgmentZone = document.getElementById('judgment-zone');
+
+        const scoreEl = document.getElementById('score');
+
+        const comboEl = document.getElementById('combo');
+
+
+
+        const startScreen = document.getElementById('start-screen');
+
+        const endScreen = document.getElementById('end-screen');
+
+        const startButton = document.getElementById('start-button');
+
+        const restartButton = document.getElementById('restart-button');
+
+        const finalScoreEl = document.getElementById('final-score');
+
+        const maxComboEl = document.getElementById('max-combo');
+
+
+
+        let isDragging = false;
+
+        let score = 0;
+
+        let combo = 0;
+
+        let maxCombo = 0;
+
+        let gameTime = 0;
+
+        let gameLoopId;
+
+        
+
+        // 歌曲數據: time是音符應該被判定的毫秒數
+
+        const songData = [
+
+            { time: 2000, judged: false },
+
+            { time: 3000, judged: false },
+
+            { time: 3500, judged: false },
+
+            { time: 4500, judged: false },
+
+            { time: 5500, judged: false },
+
+            { time: 6000, judged: false },
+
+            { time: 7000, judged: false },
+
+            { time: 8000, judged: false },
+
+            { time: 8500, judged: false },
+
+            { time: 9000, judged: false },
+
+            { time: 10000, judged: false },
+
+        ];
+
+        const songDuration = 12000; // 歌曲總時長
+
+        const recordSpeed = 10; // 唱片旋轉速度 (s/圈)
+
+        let noteIndex = 0;
+
+        let activeNotes = [];
+
+
+
+        // --- 拖動邏輯 ---
+
+        function onDragStart(e) {
+
+            isDragging = true;
+
+            tonearm.style.cursor = 'grabbing';
+
+            e.preventDefault();
+
+        }
+
+
+
+        function onDragMove(e) {
+
+            if (!isDragging) return;
+
+            e.preventDefault();
+
+            const touch = e.touches ? e.touches[0] : e;
+
+            const rect = gameContainer.getBoundingClientRect();
+
+            const centerX = rect.left + rect.width / 2;
+
+            const centerY = rect.top + rect.height / 2;
+
+            const angle = Math.atan2(touch.clientY - centerY, touch.clientX - centerX) * (180 / Math.PI);
+
+            tonearm.style.transform = `rotate(${angle}deg)`;
+
+        }
+
+
+
+        function onDragEnd(e) {
+
+            isDragging = false;
+
+            tonearm.style.cursor = 'grab';
+
+        }
+
+
+
+        tonearm.addEventListener('mousedown', onDragStart);
+
+        window.addEventListener('mousemove', onDragMove);
+
+        window.addEventListener('mouseup', onDragEnd);
+
+        tonearm.addEventListener('touchstart', onDragStart, { passive: false });
+
+        window.addEventListener('touchmove', onDragMove, { passive: false });
+
+        window.addEventListener('touchend', onDragEnd);
+
+
+
+        // --- 遊戲邏輯 ---
+
+        function startGame() {
+
+            // 初始化
+
+            score = 0;
+
+            combo = 0;
+
+            maxCombo = 0;
+
+            noteIndex = 0;
+
+            gameTime = 0;
+
+            activeNotes = [];
+
+            songData.forEach(n => n.judged = false);
+
+            updateUI();
+
+
+
+            document.querySelectorAll('.note').forEach(n => n.remove());
+
+            startScreen.style.display = 'none';
+
+            endScreen.style.display = 'none';
+
+            
+
+            record.style.animationDuration = `${recordSpeed}s`;
+
+            record.style.animationPlayState = 'running';
+
+
+
+            const startTime = Date.now();
+
+            
+
+            function gameLoop() {
+
+                gameTime = Date.now() - startTime;
+
+
+
+                // 產生音符
+
+                if (noteIndex < songData.length && gameTime >= songData[noteIndex].time - (recordSpeed * 1000 / 4)) {
+
+                    spawnNote(songData[noteIndex]);
+
+                    noteIndex++;
+
+                }
+
+                
+
+                // 判斷音符
+
+                const tonearmAngle = getTonearmAngle();
+
+                const judgmentAngle = -90; // 頂部
+
+
+
+                activeNotes.forEach((noteObj, index) => {
+
+                    const noteEl = noteObj.element;
+
+                    const noteData = noteObj.data;
+
+                    const noteAge = gameTime - (noteData.time - (recordSpeed * 1000 / 4));
+
+                    
+
+                    // 檢查是否在判定時間窗口
+
+                    if (Math.abs(gameTime - noteData.time) < 150 && !noteData.judged) {
+
+                        const angleDiff = Math.abs(tonearmAngle - judgmentAngle);
+
+
+
+                        if (angleDiff < 10) { // Perfect
+
+                            judge('perfect', noteObj);
+
+                        } else if (angleDiff < 25) { // Good
+
+                            judge('good', noteObj);
+
+                        }
+
+                    }
+
+
+
+                    // 錯過音符
+
+                    if (gameTime > noteData.time + 150 && !noteData.judged) {
+
+                        judge('miss', noteObj);
+
+                    }
+
+                });
+
+                
+
+                // 移除已判定的音符
+
+                activeNotes = activeNotes.filter(n => !n.data.judged);
+
+                
+
+                if (gameTime > songDuration) {
+
+                    endGame();
+
+                } else {
+
+                    gameLoopId = requestAnimationFrame(gameLoop);
+
+                }
+
+            }
+
+
+
+            gameLoopId = requestAnimationFrame(gameLoop);
+
+        }
+
+
+
+        function spawnNote(noteData) {
+
+            const note = document.createElement('div');
+
+            note.className = 'note';
+
+            // 讓音符出現在唱片頂部，它會隨著唱片旋轉
+
+            note.style.transform = `rotate(-90deg)`; 
+
+            record.appendChild(note);
+
+            activeNotes.push({ element: note, data: noteData });
+
+        }
+
+        
+
+        function judge(type, noteObj) {
+
+            noteObj.data.judged = true;
+
+            noteObj.element.remove();
+
+
+
+            let feedbackText = '';
+
+            if (type === 'perfect') {
+
+                score += 100;
+
+                combo++;
+
+                feedbackText = 'Perfect!';
+
+            } else if (type === 'good') {
+
+                score += 50;
+
+                combo++;
+
+                feedbackText = 'Good';
+
+            } else if (type === 'miss') {
+
+                combo = 0;
+
+                feedbackText = 'Miss';
+
+            }
+
+            if (combo > maxCombo) {
+
+                maxCombo = combo;
+
+            }
+
+            
+
+            showFeedback(type, feedbackText);
+
+            updateUI();
+
+        }
+
+        
+
+        function showFeedback(type, text) {
+
+            const feedbackEl = document.createElement('div');
+
+            feedbackEl.className = 'feedback';
+
+            feedbackEl.id = type;
+
+            feedbackEl.textContent = text;
+
+            document.body.appendChild(feedbackEl);
+
+            setTimeout(() => feedbackEl.remove(), 1000);
+
+        }
+
+
+
+        function endGame() {
+
+            cancelAnimationFrame(gameLoopId);
+
+            record.style.animationPlayState = 'paused';
+
+            finalScoreEl.textContent = score;
+
+            maxComboEl.textContent = maxCombo;
+
+            endScreen.style.display = 'flex';
+
+        }
+
+
+
+        function getTonearmAngle() {
+
+            const style = window.getComputedStyle(tonearm);
+
+            const matrix = new DOMMatrixReadOnly(style.transform);
+
+            return Math.atan2(matrix.b, matrix.a) * (180 / Math.PI);
+
+        }
+
+
+
+        function updateUI() {
+
+            scoreEl.textContent = score;
+
+            comboEl.textContent = combo;
+
+        }
+
+
+
+        startButton.addEventListener('click', startGame);
+
+        restartButton.addEventListener('click', startGame);
+
+    </script>
+
+
+
+</body>
+
+</html>
